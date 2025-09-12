@@ -4,6 +4,7 @@ import requests
 import time
 import os
 import hashlib
+import argparse
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -576,5 +577,11 @@ class SenecaNotifier:
 
 
 if __name__ == "__main__":
-    notifier = SenecaNotifier()
+    parser = argparse.ArgumentParser(description='Monitor Séneca for new messages')
+    parser.add_argument('-c', '--config', default='config.json', 
+                       help='Configuration file path (default: config.json)')
+    
+    args = parser.parse_args()
+    
+    notifier = SenecaNotifier(args.config)
     notifier.run()
