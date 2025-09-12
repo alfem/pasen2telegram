@@ -17,12 +17,13 @@ from datetime import datetime
 
 
 class SenecaNotifier:
-    def __init__(self, config_file='config.json'):
+    def __init__(self, config_file='config.json', date_filter=None):
         with open(config_file, 'r', encoding='utf-8') as f:
             self.config = json.load(f)
         
         self.data_file = self.config['data_file']
         self.processed_news = self.load_processed_news()
+        self.date_filter = date_filter
         
         # Configurar Chrome con más opciones para estabilidad
         self.chrome_options = Options()
@@ -434,7 +435,8 @@ class SenecaNotifier:
                                 'hash': news_hash,
                                 'title': title,
                                 'content': content,
-                                'timestamp': datetime.now().isoformat()
+                                'timestamp': datetime.now().isoformat(),
+                                'date_info': date_info
                             }
                             
                             news_list.append(news_item)
@@ -463,7 +465,8 @@ class SenecaNotifier:
                                 'hash': news_hash,
                                 'title': title,
                                 'content': text,
-                                'timestamp': datetime.now().isoformat()
+                                'timestamp': datetime.now().isoformat(),
+                                'date_info': ''
                             }
                             
                             news_list.append(news_item)
@@ -498,12 +501,52 @@ class SenecaNotifier:
             print(f"Error enviando mensaje por Telegram: {e}")
             return False
     
+    def is_date_newer_than_filter(self, date_str):
+        """Verifica si una fecha es más reciente que el filtro"""
+        if not self.date_filter or not date_str:
+            return True
+            
+        try:
+            # Intentar parsear diferentes formatos de fecha del sistema
+            date_formats = [
+                '%d/%m/%Y',  # 12/03/2024
+                '%d/%m/%y',  # 12/03/24
+                '%Y-%m-%d',  # 2024-03-12
+                '%d-%m-%Y',  # 12-03-2024
+            ]
+            
+            news_date = None
+            for fmt in date_formats:
+                try:
+                    news_date = datetime.strptime(date_str.strip(), fmt)
+                    break
+                except ValueError:
+                    continue
+            
+            if not news_date:
+                # Si no se puede parsear la fecha, asumir que es reciente
+                return True
+                
+            # Convertir filtro YYYYMMDD a datetime
+            filter_date = datetime.strptime(self.date_filter, '%Y%m%d')
+            
+            return news_date.date() > filter_date.date()
+            
+        except Exception as e:
+            print(f"Error comparando fechas: {e}")
+            return True  # En caso de error, incluir la noticia
+    
     def process_new_news(self, news_list):
         """Procesa las noticias nuevas y envía por Telegram"""
         new_news_count = 0
         
         for news in news_list:
             if news['hash'] not in self.processed_news:
+                # Verificar filtro de fecha si está configurado
+                if not self.is_date_newer_than_filter(news.get('date_info', '')):
+                    print(f"Noticia filtrada por fecha: {news['title'][:50]}...")
+                    continue
+                    
                 # Nueva noticia encontrada
                 self.processed_news[news['hash']] = {
                     'title': news['title'],
@@ -580,8 +623,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Monitor Séneca for new messages')
     parser.add_argument('-c', '--config', default='config.json', 
                        help='Configuration file path (default: config.json)')
+    parser.add_argument('-d', '--date', 
+                       help='Only notify news newer than this date (format: YYYYMMDD)')
     
     args = parser.parse_args()
     
-    notifier = SenecaNotifier(args.config)
+    notifier = SenecaNotifier(args.config, args.date)
     notifier.run()
