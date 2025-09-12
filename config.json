@@ -1,0 +1,12 @@
+{
+  "seneca": {
+    "url": "https://seneca.juntadeandalucia.es/seneca/jsp/portal/",
+    "username": "TU_USUARIO",
+    "password": "TU_CLAVE."
+  },
+  "telegram": {
+    "bot_token": "TU_TOKEN_BOT_TELEGRAM",
+    "chat_id": "TU_CHAT_ID"
+  },
+  "data_file": "noticias_procesadas.json"
+}
